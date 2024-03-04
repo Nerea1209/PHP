@@ -1,5 +1,5 @@
 <?php
-define("DIR_SERV", "http://localhost/Proyectos/App_Login/servicios_rest");
+define("DIR_SERV", "http://localhost/Proyectos/EjerciciosHastaExamenFinal/App_Login/servicios_rest");
 define("MINUTOS", 2);
 
 // Esta función nos la da el profe

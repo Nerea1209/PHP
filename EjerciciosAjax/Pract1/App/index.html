@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Práctica 1 - Ajax</title>
+    <script src="js/jquery-3.6.3.min.js"></script>
+    <script src="js/index.js"></script>
+    <style>
+        th,
+        tr,
+        td,
+        table {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+
+        table {
+            width: 100%;
+            text-align: center;
+        }
+
+        #principal {
+            width: 80%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .enlace {
+            background: none;
+            color: blue;
+            text-decoration: underline;
+            border: none;
+            cursor: pointer;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .mensaje {
+            color: blue;
+            font-size: 1.2rem;
+        }
+
+        .enlinea {
+            display: inline-block;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Listado de los productos</h1>
+    <div id="errores"></div>
+    <div id="principal">
+        <div id="respuesta"></div>
+        <div id="tabla"></div>
+    </div>
+</body>
+
+</html>
