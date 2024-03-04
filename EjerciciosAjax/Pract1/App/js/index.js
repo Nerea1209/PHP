@@ -120,8 +120,9 @@ function form_insertar() {
                 // Si obtengo las familias monto el formulario
                 var form = "<h2>Creando un producto</h2>";
                 form += "<form onsubmit='event.preventDefault(); '>";
-                form += "<p><label for='cod'>Código: </label> <input type='text' name='cod' id='cod' maxlength='12'></p>";
+                form += "<p><label for='cod'>Código: </label> <input type='text' name='cod' id='cod' maxlength='12'></p><span class='error'></span>";
                 form += '<p><label for="nombre">Nombre: </label><input type="text" name="nombre" id="nombre" maxlength="200"></p>';
+                form += '<p><label for="nombre_corto">Nombre corto: </label><input type="text" name="nombre_corto" id="nombre_corto" maxlength="50"></p><span class="error"></span>';
                 form += '<p><label for="descripcion">Descripción: </label><textarea name="descripcion" id="descripcion"></textarea></p>';
                 form += '<p><label for="familia">Seleccione una familia: </label><select name="familia" id="familia">'
                 $.each(data.familias, function (key, tupla) {
@@ -134,6 +135,45 @@ function form_insertar() {
             }
         })
 
+        .fail(function (a, b) {
+            $('#errores').html(error_ajax_jquery(a, b));
+            $('#principal').html("");
+        });
+}
+
+function comprobar_nuevo() {
+    $("#error_cod").html("");
+    $("#error_nombre_corto").html("");
+    var cod = $("cod").val();
+    var nombre_corto = $("nombre_corto").val();
+    $.ajax({
+        url: encodeURL(DIR_SERV + "/repetido/producto/cod/" + cod),
+        dataType: "json",
+        type: "GET"
+    })
+        .done(function (data) {
+            $("#error_cod").html("Código repetido");
+            if (data.mensaje_error) {
+                $('#errores').html(data.mensaje_error);
+                $('#principal').html("");
+            } else if (data.repetido) {
+                // Informo código repetido y compruebo también nombre corto y no inserto
+                $.ajax({
+                    url: encodeURL(DIR_SERV + "/repetido/producto/nombre_corto/" + nombre_corto),
+                    dataType: "json",
+                    type: "GET"
+                })
+                    .done(function (data) {
+                        $("#error_nombre_corto").html("Nombre corto repetido");
+                    })
+                    .fail(function (a, b) {
+                        $('#errores').html(error_ajax_jquery(a, b));
+                        $('#principal').html("");
+                    });
+            } else {
+                // Compruebo nombre_corto y si está repetido informo y no inserto y sino, inserto
+            }
+        })
         .fail(function (a, b) {
             $('#errores').html(error_ajax_jquery(a, b));
             $('#principal').html("");
