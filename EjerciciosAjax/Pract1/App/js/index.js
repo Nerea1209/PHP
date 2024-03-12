@@ -24,12 +24,11 @@ function obtener_productos() {
                     tabla_productos += "<td><button class='enlace' type='submit' name='btnDetalles' onclick='obtener_producto(\"" + tupla["cod"] + "\")' value='" + tupla["cod"] + "'>" + tupla["cod"] + "</button></td>";
                     tabla_productos += "<td>" + tupla["nombre_corto"] + "</td>";
                     tabla_productos += "<td>" + tupla["PVP"] + " €</td>";
-                    tabla_productos += "<td><button class='enlace' type='submit' name='btnBorrar' value='" + tupla["cod"] + "'>Borrar</button> - <button button button class='enlace' type = 'submit' name = 'btnEditar' value = '" + tupla["cod"] + "' > Editar</button ></td > ";
+                    tabla_productos += "<td><button class='enlace' onclick='confirmar_borrar(\"" + tupla["cod"] + "\");'>Borrar</button> - <button class='enlace' onclick='form_editar(\"" + tupla["cod"] + "\");' > Editar</button ></td > ";
                     tabla_productos += "</form></tr>";
                 });
                 tabla_productos += "</table>";
                 $('#errores').html("");
-                $('#respuesta').html("");
                 $('#tabla').html(tabla_productos);
             }
         })
@@ -119,17 +118,18 @@ function form_insertar() {
             else {
                 // Si obtengo las familias monto el formulario
                 var form = "<h2>Creando un producto</h2>";
-                form += "<form onsubmit='event.preventDefault(); '>";
-                form += "<p><label for='cod'>Código: </label> <input type='text' name='cod' id='cod' maxlength='12'></p><span class='error'></span>";
+                form += "<form onsubmit='event.preventDefault();comprobar_nuevo();'>";
+                form += "<p><label for='cod'>Código: </label> <input type='text' name='cod' id='cod' maxlength='12'><span class='error' id='error_cod'></span></p>";
                 form += '<p><label for="nombre">Nombre: </label><input type="text" name="nombre" id="nombre" maxlength="200"></p>';
-                form += '<p><label for="nombre_corto">Nombre corto: </label><input type="text" name="nombre_corto" id="nombre_corto" maxlength="50"></p><span class="error"></span>';
+                form += '<p><label for="nombre_corto">Nombre corto: </label><input type="text" name="nombre_corto" id="nombre_corto" maxlength="50"><span class="error" id="error_nombre_corto"></span></p>';
+                form += '<p><label for="pvp">PVP: </label><input type="text" name="pvp" id="pvp"><span class="error" id="error_precio"></span></p>';
                 form += '<p><label for="descripcion">Descripción: </label><textarea name="descripcion" id="descripcion"></textarea></p>';
                 form += '<p><label for="familia">Seleccione una familia: </label><select name="familia" id="familia">'
                 $.each(data.familias, function (key, tupla) {
                     form += "<option value='" + tupla["cod"] + "'>" + tupla["nombre"] + "</option>";
                 })
                 form += '</select></p>';
-                form += '<p><button type="submit" name="btnVolver" onclick="volver()">Volver</button><button type="submit" name="btnContInsertar">Continuar</button></p>';
+                form += '<p><button name="btnVolver" onclick="volver()">Volver</button><button>Continuar</button></p></form>';
                 $('#errores').html("");
                 $('#respuesta').html(form);
             }
@@ -141,37 +141,226 @@ function form_insertar() {
         });
 }
 
+// Comprueba errores e inserta
 function comprobar_nuevo() {
-    $("#error_cod").html("");
-    $("#error_nombre_corto").html("");
-    var cod = $("cod").val();
-    var nombre_corto = $("nombre_corto").val();
+    $('#error_cod').html("");
+    $('#error_nombre_corto').html("");
+    $('#error_precio').html("");
+
+
+    var cod = $('#cod').val();
+    var nombre_corto = $('#nombre_corto').val();
+    var pvp = $('#pvp').val();
+
+    if (cod == "" || nombre_corto == "" || pvp == "" || !parseInt(pvp) || pvp < 0) {
+        if (cod == "") {
+            $('#error_cod').html(" Campo vacío");
+        }
+        if (nombre_corto == "") {
+            $('#error_nombre_corto').html(" Campo vacío");
+        }
+
+        if (pvp == "") {
+            $('#error_precio').html(" Campo vacío");
+        } else if (!parseInt(pvp) || pvp < 0) {
+            $('#error_precio').html(" El precio tiene que ser un número positivo");
+        } else {
+            $('#error_precio').html("");
+        }
+    } else {
+        $.ajax({
+            url: encodeURI(DIR_SERV + "/repetido/producto/cod/" + cod),
+            type: "GET",
+            dataType: "json"
+        })
+            .done(function (data) {
+                if (data.mensaje_error) {
+                    $('#errores').html(data.mensaje_error);
+                    $('#respuesta').html("");
+                    $('#productos').html("");
+                }
+                else if (data.repetido) {
+                    //Informo código repetido y compruebo también nombre corto  pero ya no inserto
+                    $('#error_cod').html("Código repetido");
+
+                    $.ajax({
+                        url: encodeURI(DIR_SERV + "/repetido/producto/nombre_corto/" + nombre_corto),
+                        type: "GET",
+                        dataType: "json"
+                    })
+                        .done(function (data) {
+                            if (data.mensaje_error) {
+                                $('#errores').html(data.mensaje_error);
+                                $('#respuesta').html("");
+                                $('#productos').html("");
+                            }
+                            if (data.repetido) {
+                                $('#error_nombre_corto').html("Nombre corto repetido");
+                            }
+                        })
+                        .fail(function (a, b) {
+                            $('#errores').html(error_ajax_jquery(a, b));
+                            $('#respuesta').html("");
+                            $('#productos').html("");
+                        });
+                }
+                else {
+                    //Compruebo nombre corto y si está repetido informo y no inserto, pero si no está repetido inserto
+                    $.ajax({
+                        url: encodeURI(DIR_SERV + "/repetido/producto/nombre_corto/" + nombre_corto),
+                        type: "GET",
+                        dataType: "json"
+                    })
+                        .done(function (data) {
+                            if (data.mensaje_error) {
+                                $('#errores').html(data.mensaje_error);
+                                $('#respuesta').html("");
+                                $('#productos').html("");
+                            }
+                            if (data.repetido) {
+                                $('#error_nombre_corto').html("Nombre corto repetido");
+                            }
+                            else {
+                                var nombre = $('#nombre').val();
+                                var descripcion = $('#descripcion').val();
+                                var PVP = $('#pvp').val();
+                                var familia = $('#familia').val();
+
+                                $.ajax({
+                                    url: DIR_SERV + "/producto/insertar",
+                                    type: "POST",
+                                    dataType: "json",
+                                    data: { "cod": cod, "nombre": nombre, "nombre_corto": nombre_corto, "descripcion": descripcion, "PVP": PVP, "familia": familia }
+                                })
+                                    .done(function (data) {
+                                        if (data.mensaje_error) {
+                                            $('#errores').html(data.mensaje_error);
+                                            $('#respuesta').html("");
+                                            $('#productos').html("");
+                                        }
+                                        else {
+                                            $('#respuesta').html("<p class='mensaje'>El producto con cod: <strong>" + cod + "</strong> se ha insertado con éxito<p>");
+                                            obtener_productos();
+                                        }
+
+                                    })
+                                    .fail(function (a, b) {
+                                        $('#errores').html(error_ajax_jquery(a, b));
+                                        $('#respuesta').html("");
+                                        $('#productos').html("");
+                                    });
+                            }
+                        })
+                        .fail(function (a, b) {
+                            $('#errores').html(error_ajax_jquery(a, b));
+                            $('#respuesta').html("");
+                            $('#productos').html("");
+                        });
+
+                }
+
+            })
+            .fail(function (a, b) {
+                $('#errores').html(error_ajax_jquery(a, b));
+                $('#respuesta').html("");
+                $('#productos').html("");
+            });
+    }
+}
+
+// Muestra formulario para confirmar el borrar
+function confirmar_borrar(cod) {
+    html_conf_borrar = "<p class='centrado'>Se dispone usted a borrar el producto: <strong>" + cod + "</strong></p>";
+    html_conf_borrar += "<p class='centrado'>¿Estás Seguro?</p>";
+    html_conf_borrar += "<p class='centrado'><button onclick='volver();'>Volver</button> <button onclick='borrar(\"" + cod + "\")'>Continuar</button></p>";
+    $('#respuesta').html(html_conf_borrar);
+}
+
+// Borra un elemento segun cod
+function borrar(cod) {
     $.ajax({
-        url: encodeURL(DIR_SERV + "/repetido/producto/cod/" + cod),
+        url: encodeURI(DIR_SERV + "/producto/borrar/" + cod),
+        type: "DELETE",
+        dataType: "json"
+    })
+        .done(function (data) {
+            if (data.mensaje_error) {
+                $('#errores').html(data.mensaje_error);
+                $('#respuesta').html("");
+                $('#productos').html("");
+            }
+            else {
+                $('#errores').html("");
+                $('#respuesta').html("<p class='mensaje'>El producto con cod: <strong>" + cod + "</strong> se ha borrado con éxito.</p>");
+                obtener_productos();
+            }
+        })
+        .fail(function (a, b) {
+            $('#errores').html(error_ajax_jquery(a, b));
+            $('#respuesta').html("");
+            $('#productos').html("");
+        });
+}
+
+// Crea formulario de editar
+function form_editar(id) {
+    $.ajax({
+        url: DIR_SERV + "/familias",
         dataType: "json",
         type: "GET"
     })
-        .done(function (data) {
-            $("#error_cod").html("Código repetido");
-            if (data.mensaje_error) {
-                $('#errores').html(data.mensaje_error);
+        .done(function (data1) {
+            if (data1.mensaje_error) {
+                $('#errores').html(data1.mensaje_error);
                 $('#principal').html("");
-            } else if (data.repetido) {
-                // Informo código repetido y compruebo también nombre corto y no inserto
+            }
+            else {
+                // Si obtengo las familias, obtengo los datos del objeto a editar
                 $.ajax({
-                    url: encodeURL(DIR_SERV + "/repetido/producto/nombre_corto/" + nombre_corto),
+                    url: DIR_SERV + "/producto/" + id,
                     dataType: "json",
                     type: "GET"
                 })
                     .done(function (data) {
-                        $("#error_nombre_corto").html("Nombre corto repetido");
+                        if (data.mensaje_error) {
+                            $('#errores').html(data.mensaje_error);
+                            $('#principal').html("");
+                        } else if (data.mensaje) {
+                            $('#errores').html("");
+                            $('#respuesta').html(data.mensaje);
+                            obtener_productos()
+                        } else {
+                            // Creamos el formulario con los datos del producto
+
+                            var form = "<h2>Editando el producto con id " + id + "</h2>";
+                            form += "<form onsubmit='event.preventDefault();comprobar_editar(\"" + id + "\");'>";
+                            if (data.producto["nombre"])
+                                form += '<p><label for="nombre">Nombre: </label><input type="text" name="nombre" id="nombre" maxlength="200" value=' + data.producto["nombre"] + '></p>';
+                            else
+                                form += '<p><label for="nombre">Nombre: </label><input type="text" name="nombre" id="nombre" maxlength="200"></p>';
+                            form += '<p><label for="nombre_corto">Nombre corto: </label><input type="text" name="nombre_corto" id="nombre_corto" maxlength="50"  value=' + data.producto["nombre_corto"] + '><span class="error" id="error_nombre_corto"></span></p>';
+                            form += '<p><label for="pvp">PVP: </label><input type="text" name="pvp" id="pvp" value=' + data.producto["PVP"] + '><span class="error" id="error_precio"></span></p>';
+                            if (data.producto["descripcion"])
+                                form += '<p><label for="descripcion">Descripción: </label><textarea name="descripcion" id="descripcion">' + data.producto["descripcion"] + '</textarea></p>';
+                            else
+                                form += '<p><label for="descripcion">Descripción: </label><textarea name="descripcion" id="descripcion"></textarea></p>';
+                            form += '<p><label for="familia">Seleccione una familia: </label><select name="familia" id="familia">'
+                            $.each(data1.familias, function (key, tupla) {
+                                if (data.producto["familia"] == tupla["cod"])
+                                    form += "<option value='" + tupla["cod"] + "' selected>" + tupla["nombre"] + "</option>";
+                                else
+                                    form += "<option value='" + tupla["cod"] + "'>" + tupla["nombre"] + "</option>";
+                            })
+                            form += '</select></p>';
+                            form += '<p><button name="btnVolver" onclick="volver()">Volver</button><button>Continuar</button></p></form>';
+                            $('#errores').html("");
+                            $('#respuesta').html(form);
+                        }
                     })
                     .fail(function (a, b) {
                         $('#errores').html(error_ajax_jquery(a, b));
                         $('#principal').html("");
                     });
-            } else {
-                // Compruebo nombre_corto y si está repetido informo y no inserto y sino, inserto
             }
         })
         .fail(function (a, b) {
@@ -179,6 +368,83 @@ function comprobar_nuevo() {
             $('#principal').html("");
         });
 }
+
+// Comprueba errores y edita
+function comprobar_editar(cod) {
+    $('#error_nombre_corto').html("");
+    $('#error_precio').html("");
+
+    var nombre_corto = $('#nombre_corto').val();
+    var pvp = $('#pvp').val();
+
+    if (nombre_corto == "" || pvp == "" || !parseInt(pvp) || pvp < 0) {
+        if (nombre_corto == "") {
+            $('#error_nombre_corto').html(" Campo vacío");
+        }
+
+        if (pvp == "") {
+            $('#error_precio').html(" Campo vacío");
+        } else if (!parseInt(pvp) || pvp < 0) {
+            $('#error_precio').html(" El precio tiene que ser un número positivo");
+        } else {
+            $('#error_precio').html("");
+        }
+    } else {
+
+
+        //Compruebo nombre corto y si está repetido informo y no inserto, pero si no está repetido inserto
+        $.ajax({
+            url: encodeURI(DIR_SERV + "/repetido/producto/nombre_corto/" + nombre_corto + "/cod/" + cod),
+            type: "GET",
+            dataType: "json"
+        })
+            .done(function (data) {
+                if (data.mensaje_error) {
+                    $('#errores').html(data.mensaje_error);
+                    $('#respuesta').html("");
+                    $('#productos').html("");
+                }
+                if (data.repetido) {
+                    $('#error_nombre_corto').html("Nombre corto repetido");
+                }
+                else {
+                    var nombre = $('#nombre').val();
+                    var descripcion = $('#descripcion').val();
+                    var PVP = $('#pvp').val();
+                    var familia = $('#familia').val();
+
+                    $.ajax({
+                        url: DIR_SERV + "/producto/actualizar/" + cod,
+                        type: "PUT",
+                        dataType: "json",
+                        data: { "nombre": nombre, "nombre_corto": nombre_corto, "descripcion": descripcion, "PVP": PVP, "familia": familia }
+                    })
+                        .done(function (data) {
+                            if (data.mensaje_error) {
+                                $('#errores').html(data.mensaje_error);
+                                $('#respuesta').html("");
+                                $('#productos').html("");
+                            }
+                            else {
+                                $('#respuesta').html("<p class='mensaje'>El producto con cod: <strong>" + cod + "</strong> se ha actualizado con éxito<p>");
+                                obtener_productos();
+                            }
+                        })
+                        .fail(function (a, b) {
+                            $('#errores').html(error_ajax_jquery(a, b));
+                            $('#respuesta').html("");
+                            $('#productos').html("");
+                        });
+                }
+            })
+            .fail(function (a, b) {
+                $('#errores').html(error_ajax_jquery(a, b));
+                $('#respuesta').html("");
+                $('#productos').html("");
+            });
+    }
+}
+
 
 function error_ajax_jquery(jqXHR, textStatus) {
     var respuesta;
